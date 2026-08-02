@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import requests
 from openai import OpenAI
-from bs4 import BeautifulSoup
 
 # --- Page Configuration ---
 st.set_page_config(page_title="What I need To Know", page_icon="📜")
@@ -24,15 +23,15 @@ client = OpenAI(
 )
 
 # --- Search Function ---
-def search_bylaws(location, query):
+def search_bylaws(location):
     """Search for bylaws and regulations for a specific location."""
     try:
         # Tavily search API (free tier: 1000 searches/month)
         search_url = "https://api.tavily.com/search"
         payload = {
             "api_key": TAVILY_API_KEY,
-            "query": f"{location} municipal bylaws regulations {query}",
-            "search_depth": "advanced",  # Gets more detailed results
+            "query": f"{location} municipal bylaws regulations property maintenance noise parking waste",
+            "search_depth": "advanced",
             "max_results": 5
         }
         
@@ -89,7 +88,7 @@ Search Results:
 
 Please answer the question using the search results above."""}
             ],
-            temperature=0.3,  # Lower temperature for more factual responses
+            temperature=0.3,
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -104,7 +103,7 @@ if st.button("Get Explanation", type="primary"):
     else:
         with st.spinner("Searching for bylaws and regulations..."):
             # Step 1: Search for relevant bylaws
-            search_results = search_bylaws(user_input1, "property maintenance noise parking waste")
+            search_results = search_bylaws(user_input1)
             
             if "Search error" in search_results:
                 st.error(search_results)
