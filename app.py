@@ -42,9 +42,10 @@ Make sure to cover:
 - Pet laws
 - Any other common or uncommon concerns
 
-report the result in a table, with there being columns for what you are responsible for, the city is responsible for, exceptions, whether the law comes from the city or province/state. 
-make sure to add details for details like construction, location, date and time, differences between authorities etc. 
-Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment"""},
+report the result in a table, the results should be easy to follow and read, but must be detailed and not missing any details. 
+make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
+limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
+Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment."""},
                 {"role": "user", "content": query}
             ],
             temperature=0.7,
