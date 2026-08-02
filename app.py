@@ -95,7 +95,7 @@ Please answer the question using the search results above."""}
         return f"An error occurred: {e}"
 
 # --- Streamlit User Interface ---
-user_input1 = st.text_area("I Live In", height=40, placeholder="e.g., In Quebec")
+user_input1 = st.text_area("I Live In (City, Province)", height=40, placeholder="e.g., In Montreal Quebec ")
 
 if st.button("Get Explanation", type="primary"):
     if user_input1.strip() == "":
@@ -111,7 +111,7 @@ if st.button("Get Explanation", type="primary"):
             
             # Step 2: Show sources found
             with st.expander("📚 Sources Found"):
-                st.write(search_results)
+                st.markdown(search_results)
             
             # Step 3: Get AI to process the search results
             with st.spinner("Analyzing the regulations..."):
