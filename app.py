@@ -120,6 +120,6 @@ if st.button("Get Explanation", type="primary"):
                     "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table.",
                     search_results
                 )
-                result_=result.replace("<br>","")
+                result_=result.replace("<br>"," \n")
                 st.success("### Response:")
                 st.markdown(result_)
