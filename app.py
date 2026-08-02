@@ -80,9 +80,9 @@ report the results in a table and make sure the bylaws are correct for the city,
 make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
 limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
 
-Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment. Add a summery at the end.
+Make sure details are relevant to a resident of the city. below the table add a section about parks, festivals and general local entertainment. Add a summery at the end.
 
-Cite your sources by including the URL of where you found the information."""},
+Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in"""},
                 {"role": "user", "content": f"""Question: {query}
 
 Search Results:
