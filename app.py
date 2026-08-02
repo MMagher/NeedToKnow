@@ -120,4 +120,4 @@ if st.button("Get Explanation", type="primary"):
                     search_results
                 )
                 st.success("### Response:")
-                st.write(result)
+                st.markdown(result)
