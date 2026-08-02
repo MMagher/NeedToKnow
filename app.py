@@ -55,7 +55,7 @@ def ask_llm(query, search_results):
     """Sends the user's query and search results to the LLM."""
     try:
         response = client.chat.completions.create(
-            model="deepseek-ai/deepseek-v4-flash",
+            model="deepseek-ai/deepseek-v4-pro",
             messages=[
                 {"role": "system", "content": """You are a helpful assistant that explains laws, bylaws, and regulations in an easy-to-understand but detailed way. 
                 
@@ -78,7 +78,7 @@ Make sure to cover:
 report the results in a table and make sure the bylaws are correct for the city, but they should be well organized the results should be easy to follow and read, but must be detailed and not missing any details. 
 make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
 limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
-exemptions must always be labeled as such
+
 Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment. Add a summery at the end.
 
 Cite your sources by including the URL of where you found the information."""},
@@ -122,3 +122,5 @@ if st.button("Get Explanation", type="primary"):
                 )
                 st.success("### Response:")
                 st.markdown(result, unsafe_allow_html=True)
+
+st.markdown("This is an AI powered tool, it is not a replacement for reading the bylaws. Please read the provided sources and your city's website to find more details regarding bylaws")
