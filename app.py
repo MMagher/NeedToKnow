@@ -71,8 +71,9 @@ Make sure to cover:
 - Property maintenance
 - Parking and vehicles
 - Waste and recycling
-- Seasonal requirements including snow, leaves, and any other bylaws covering winter, spring, summer and autumn.
-- Pet laws
+- Winter snow and ice requrements
+- lawn requirements
+- Pet Limits and regulations
 - Any other common or uncommon concerns
 
 report the results in a table and make sure the bylaws are correct for the city, but they should be well organized the results should be easy to follow and read, but must be detailed and not missing any details. 
@@ -122,5 +123,3 @@ if st.button("Get Explanation", type="primary"):
                 )
                 st.success("### Response:")
                 st.markdown(result, unsafe_allow_html=True)
-
-st.markdown("This is an AI powered tool, it is not a replacement for reading the bylaws. Please read the provided sources and your city's website to find more details regarding bylaws")
