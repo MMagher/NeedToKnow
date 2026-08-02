@@ -71,16 +71,17 @@ Make sure to cover:
 - Property maintenance
 - Parking and vehicles
 - Waste and recycling
-- Seasonal requirements
+- Seasonal requirements including snow, leaves, and any other bylaws covering winter, spring, summer and autumn.
 - Pet laws
 - Any other common or uncommon concerns
 
 report the results in a table and make sure the bylaws are correct for the city, but they should be well organized the results should be easy to follow and read, but must be detailed and not missing any details. 
 make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
 limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
-Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment.
+make sure to add numbers for limits, things like how tall/much grass/snow/leaves/etc you can have and for how long you can violate. make sure every section has the numbers necessary listed
+Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment. Add a summery at the end.
 
-Cite your sources by including the URL of where you found the information."""},
+Cite your sources by including the URL of where you found the information. make sure to not use HTML and only use markdown"""},
                 {"role": "user", "content": f"""Question: {query}
 
 Search Results:
