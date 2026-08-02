@@ -42,8 +42,9 @@ Make sure to cover:
 - Pet laws
 - Any other common or uncommon concerns
 
-Include exact details like time, place, and exceptions/rules.
-Provide the results in an easy-to-follow table format."""},
+report the result in a table, with there being columns for what you are responsible for, the city is responsible for, exceptions, whether the law comes from the city or province/state. 
+make sure to add details for details like construction, location, date and time, differences between authorities etc. 
+Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment"""},
                 {"role": "user", "content": query}
             ],
             temperature=0.7,
