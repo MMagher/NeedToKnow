@@ -81,7 +81,7 @@ limits in general, what the city vs resident is responsible for, exceptions to r
 
 Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment. Add a summery at the end.
 
-Cite your sources by including the URL of where you found the information. make sure to never use HTML and only use markdown, do not use <br>"""},
+Cite your sources by including the URL of where you found the information."""},
                 {"role": "user", "content": f"""Question: {query}
 
 Search Results:
@@ -120,6 +120,5 @@ if st.button("Get Explanation", type="primary"):
                     "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table.",
                     search_results
                 )
-                result_=result.replace("<br>"," \n")
                 st.success("### Response:")
-                st.markdown(result_)
+                st.markdown(result, unsafe_allow_html=True)
