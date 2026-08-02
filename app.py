@@ -1,17 +1,20 @@
 import streamlit as st
 import os
+import requests
 from openai import OpenAI
+from bs4 import BeautifulSoup
 
 # --- Page Configuration ---
 st.set_page_config(page_title="What I need To Know", page_icon="📜")
 st.title("What I need To Know")
 st.markdown("Ask about the laws and differences between places (e.g., 'I moved to Austin from New York...').")
 
-# --- Get API Key from Streamlit Secrets ---
+# --- Get API Keys from Streamlit Secrets ---
 try:
     NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
-except KeyError:
-    st.error("NVIDIA API key not found. Please set it in your Streamlit Cloud secrets.")
+    TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]  # Free search API
+except KeyError as e:
+    st.error(f"API key not found: {e}. Please set it in your Streamlit Cloud secrets.")
     st.stop()
 
 # --- Initialize NVIDIA NIM Client ---
@@ -20,15 +23,46 @@ client = OpenAI(
     api_key=NVIDIA_API_KEY,
 )
 
+# --- Search Function ---
+def search_bylaws(location, query):
+    """Search for bylaws and regulations for a specific location."""
+    try:
+        # Tavily search API (free tier: 1000 searches/month)
+        search_url = "https://api.tavily.com/search"
+        payload = {
+            "api_key": TAVILY_API_KEY,
+            "query": f"{location} municipal bylaws regulations {query}",
+            "search_depth": "advanced",  # Gets more detailed results
+            "max_results": 5
+        }
+        
+        response = requests.post(search_url, json=payload)
+        response.raise_for_status()
+        results = response.json()
+        
+        # Extract and combine the search results
+        search_context = ""
+        for result in results.get("results", []):
+            search_context += f"Source: {result.get('url')}\n"
+            search_context += f"Title: {result.get('title')}\n"
+            search_context += f"Content: {result.get('content')}\n\n"
+        
+        return search_context
+    except Exception as e:
+        return f"Search error: {e}"
+
 # --- Core Logic ---
-def ask_llm(query):
-    """Sends the user's query to the LLM and returns the response."""
+def ask_llm(query, search_results):
+    """Sends the user's query and search results to the LLM."""
     try:
         response = client.chat.completions.create(
             model="deepseek-ai/deepseek-v4-flash",
             messages=[
                 {"role": "system", "content": """You are a helpful assistant that explains laws, bylaws, and regulations in an easy-to-understand but detailed way. 
                 
+You will be given search results from official municipal sources. Use these search results to answer the user's question. 
+If the search results don't contain specific information about a bylaw, say "I couldn't find specific information about this in the search results" rather than making it up.
+
 Format your response as follows:
 - Location X requires your grass mowed and no higher than 4 centimeters tall
 - Location X requires driveways, sidewalks, and approaches to your door to be snow and ice free
@@ -42,13 +76,20 @@ Make sure to cover:
 - Pet laws
 - Any other common or uncommon concerns
 
-report the result in a table, the results should be easy to follow and read, but must be detailed and not missing any details. 
+report the results in a table and make sure the bylaws are correct for the city, but they should be well organized the results should be easy to follow and read, but must be detailed and not missing any details. 
 make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
 limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
-Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment."""},
-                {"role": "user", "content": query}
+Make sure details are relevant to a resident of the city. At the bottom of the table add a section about parks, festivals and general local entertainment.
+
+Cite your sources by including the URL of where you found the information."""},
+                {"role": "user", "content": f"""Question: {query}
+
+Search Results:
+{search_results}
+
+Please answer the question using the search results above."""}
             ],
-            temperature=0.7,
+            temperature=0.3,  # Lower temperature for more factual responses
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -61,13 +102,23 @@ if st.button("Get Explanation", type="primary"):
     if user_input1.strip() == "":
         st.warning("Please enter a location.")
     else:
-        with st.spinner("Consulting the legal text..."):
-            result = ask_llm("I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Provide the result in a table.")
-            st.success("### Response:")
-            st.write(result)
-
-# --- Example Questions ---
-with st.expander("💡 Example Questions"):
-    st.write("- I moved to Austin from New York, explain the key zoning and rental bylaws I need to know.")
-    st.write("- What are the main differences in property taxes between Texas and California?")
-    st.write("- How do noise ordinances compare between small towns and big cities?")
+        with st.spinner("Searching for bylaws and regulations..."):
+            # Step 1: Search for relevant bylaws
+            search_results = search_bylaws(user_input1, "property maintenance noise parking waste")
+            
+            if "Search error" in search_results:
+                st.error(search_results)
+                st.stop()
+            
+            # Step 2: Show sources found
+            with st.expander("📚 Sources Found"):
+                st.write(search_results)
+            
+            # Step 3: Get AI to process the search results
+            with st.spinner("Analyzing the regulations..."):
+                result = ask_llm(
+                    "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table.",
+                    search_results
+                )
+                st.success("### Response:")
+                st.write(result)
