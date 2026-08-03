@@ -32,8 +32,7 @@ def search_bylaws(location):
             "api_key": TAVILY_API_KEY,
             "query": f"{location} municipal bylaws regulations property maintenance noise parking waste pet bylaws pet limits and regulations winter maintanance parks fun activities festivals community traditions",
             "search_depth": "advanced",
-            "max_results": 10,
-            "chunks_per_source": 3,
+            "max_results": 10
         }
         
         response = requests.post(search_url, json=payload)
