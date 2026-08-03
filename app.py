@@ -30,9 +30,10 @@ def search_bylaws(location):
         search_url = "https://api.tavily.com/search"
         payload = {
             "api_key": TAVILY_API_KEY,
-            "query": f"{location} municipal bylaws regulations property maintenance noise parking waste pet laws winter maintanance",
+            "query": f"{location} municipal bylaws regulations property maintenance noise parking waste pet bylaws pet limits and regulations winter maintanance",
             "search_depth": "advanced",
-            "max_results": 10
+            "max_results": 10,
+            "chunks_per_source": 3,
         }
         
         response = requests.post(search_url, json=payload)
@@ -50,11 +51,12 @@ def search_bylaws(location):
     except Exception as e:
         return f"Search error: {e}"
 
-# --- Core Logic ---
+# --- Core Logic with Streaming ---
 def ask_llm(query, search_results):
-    """Sends the user's query and search results to the LLM."""
+    """Sends the user's query and search results to the LLM with streaming."""
     try:
-        response = client.chat.completions.create(
+        # Create the streaming request
+        stream = client.chat.completions.create(
             model="deepseek-ai/deepseek-v4-pro",
             messages=[
                 {"role": "system", "content": """You are a helpful assistant that explains laws, bylaws, and regulations in an easy-to-understand but detailed way. 
@@ -71,7 +73,7 @@ Make sure to cover:
 - Property maintenance
 - Parking and vehicles
 - Waste and recycling
-- Winter snow and ice requrements
+- Winter snow and ice requirements
 - lawn requirements
 - Pet Limits and regulations
 - Any other common or uncommon concerns
@@ -80,7 +82,9 @@ report the results in a table and make sure the bylaws are correct for the city,
 make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
 limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
 
-Make sure details are relevant to a resident of the city. below the table add a section about parks, festivals and general local entertainment. Add a summery at the end.
+make sure to link the city's bylaws at the top of the results
+
+Make sure details are relevant to a resident of the city. below the table add a section about parks, festivals and general local entertainment. Add a summary at the end.
 
 Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in"""},
                 {"role": "user", "content": f"""Question: {query}
@@ -91,10 +95,16 @@ Search Results:
 Please answer the question using the search results above."""}
             ],
             temperature=0.3,
+            stream=True,  # ← Enable streaming!
         )
-        return response.choices[0].message.content
+        
+        # Yield each chunk as it arrives
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                yield chunk.choices[0].delta.content
+                
     except Exception as e:
-        return f"An error occurred: {e}"
+        yield f"An error occurred: {e}"
 
 # --- Streamlit User Interface ---
 user_input1 = st.text_area("I Live In (City, Province)", height=40, placeholder="e.g., In Montreal Quebec ")
@@ -103,23 +113,44 @@ if st.button("Get Explanation", type="primary"):
     if user_input1.strip() == "":
         st.warning("Please enter a location.")
     else:
-        with st.spinner("Searching for bylaws and regulations..."):
-            # Step 1: Search for relevant bylaws
-            search_results = search_bylaws(user_input1)
-            
-            if "Search error" in search_results:
-                st.error(search_results)
-                st.stop()
-            
-            # Step 2: Show sources found
-            with st.expander("📚 Sources Found"):
-                st.markdown(search_results)
-            
-            # Step 3: Get AI to process the search results
-            with st.spinner("Analyzing the regulations..."):
-                result = ask_llm(
-                    "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table.",
-                    search_results
-                )
-                st.success("### Response:")
-                st.markdown(result, unsafe_allow_html=True)
+        # --- Use a status container for better feedback ---
+        status = st.status("🔍 Getting information...", expanded=True)
+        
+        # Step 1: Search for relevant bylaws
+        status.update(label="📡 Searching municipal databases...", state="running")
+        search_results = search_bylaws(user_input1)
+        
+        if "Search error" in search_results:
+            status.update(label="❌ Search failed", state="error")
+            st.error(search_results)
+            st.stop()
+        
+        # Step 2: Show sources found
+        status.update(label=f"✅ Found {len(search_results.split('Source:')) - 1} sources", state="running")
+        with st.expander("📚 Sources Found"):
+            st.markdown(search_results)
+        
+        # Step 3: Stream the response
+        status.update(label="🤖 Analyzing regulations and generating response...", state="running")
+        
+        # Create a placeholder for the streaming response
+        response_placeholder = st.empty()
+        
+        # Stream the response
+        response_stream = ask_llm(
+            "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table.",
+            search_results
+        )
+        
+        # Collect the full response for display
+        full_response = ""
+        for chunk in response_stream:
+            full_response += chunk
+            # Update the placeholder with the accumulated response
+            response_placeholder.markdown(full_response, unsafe_allow_html=True)
+        
+        # Update status to complete
+        status.update(label="✅ Complete!", state="complete")
+
+# --- Optional: Add a note about streaming at the bottom ---
+st.caption("Responses stream in real-time as they're generated.")
