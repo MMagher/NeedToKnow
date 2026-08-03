@@ -12,7 +12,7 @@ st.markdown("Ask about the laws and differences between places (e.g., 'I moved t
 # --- Get API Keys from Streamlit Secrets ---
 try:
     NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
-    TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]  # Free search API
+    TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]
 except KeyError as e:
     st.error(f"API key not found: {e}. Please set it in your Streamlit Cloud secrets.")
     st.stop()
@@ -23,23 +23,40 @@ client = OpenAI(
     api_key=NVIDIA_API_KEY,
 )
 
-# --- Multi-Search Function ---
-def search_bylaws(location):
-    """Search for bylaws and regulations using multiple targeted queries."""
+# --- Multi-Search Function with Targeted Category ---
+def search_bylaws(location, category=None):
+    """Search for bylaws and regulations using multiple targeted queries.
     
-    # Define multiple search queries for different categories
-    search_queries = [
-        f"{location} municipal bylaws property maintenance grass cutting weeds",
-        f"{location} noise bylaw construction hours quiet hours",
-        f"{location} parking bylaws street parking overnight parking",
-        f"{location} waste recycling garbage collection bylaws",
-        f"{location} snow removal ice clearance winter maintenance bylaws",
-        f"{location} pet bylaws dog cat licensing animal limits",
-        f"{location} fence bylaws sight lines property boundaries",
-        f"{location} parks festivals community events entertainment",
-        f"{location} rental housing bylaws heating standards property standards",
-        f"{location} boulevard maintenance sidewalk clearing bylaws",
-    ]
+    Args:
+        location: The city/province to search for
+        category: Optional specific category to focus on (e.g., "winter", "parking", "pets")
+    """
+    
+    # If a specific category is provided, do targeted searches for that category
+    if category:
+        search_queries = [
+            f"{location} {category} bylaws regulations municipal code",
+            f"{location} {category} requirements rules ordinances",
+            f"{location} {category} restrictions compliance enforcement",
+            f"{location} {category} permits exemptions penalties",
+            f"{location} {category} responsibilities residents property owners",
+        ]
+        category_label = f" (targeted: {category})"
+    else:
+        # Otherwise do the full comprehensive search
+        search_queries = [
+            f"{location} municipal bylaws property maintenance grass cutting weeds",
+            f"{location} noise bylaw construction hours quiet hours",
+            f"{location} parking bylaws street parking overnight parking",
+            f"{location} waste recycling garbage collection bylaws",
+            f"{location} snow removal ice clearance winter maintenance bylaws",
+            f"{location} pet bylaws dog cat licensing animal limits",
+            f"{location} fence bylaws sight lines property boundaries",
+            f"{location} parks festivals community events entertainment",
+            f"{location} rental housing bylaws heating standards property standards",
+            f"{location} boulevard maintenance sidewalk clearing bylaws",
+        ]
+        category_label = ""
     
     all_results = []
     search_context = ""
@@ -58,8 +75,8 @@ def search_bylaws(location):
                 "api_key": TAVILY_API_KEY,
                 "query": query,
                 "search_depth": "advanced",
-                "max_results": 3,  # Fewer results per query to stay within limits
-                "chunks_per_source": 2,
+                "max_results": 4,  # Slightly more for targeted searches
+                "chunks_per_source": 3,
             }
             
             response = requests.post(search_url, json=payload)
@@ -68,7 +85,6 @@ def search_bylaws(location):
             
             # Add results to the combined context
             for result in results.get("results", []):
-                # Avoid duplicate sources
                 url = result.get('url', '')
                 if url not in [r.get('url', '') for r in all_results]:
                     all_results.append(result)
@@ -77,38 +93,51 @@ def search_bylaws(location):
                     search_context += f"Content: {result.get('content', '')}\n\n"
                     total_sources += 1
             
-            # Update progress
             progress_bar.progress((i + 1) / len(search_queries))
             
         except Exception as e:
-            # Continue with other searches even if one fails
             continue
     
-    # Clear progress indicators
     progress_bar.empty()
     status_text.empty()
     
-    # Add a summary of what was found
-    search_context = f"Total sources found: {total_sources}\n\n" + search_context
+    search_context = f"Total sources found: {total_sources}{category_label}\n\n" + search_context
     
     return search_context
 
 # --- Core Logic with Streaming ---
-def ask_llm(query, search_results):
+def ask_llm(query, search_results, category=None):
     """Sends the user's query and search results to the LLM with streaming."""
     try:
-        # Create the streaming request
-        stream = client.chat.completions.create(
-            model="deepseek-ai/deepseek-v4-pro",
-            messages=[
-                {"role": "system", "content": """You are a helpful assistant that explains laws, bylaws, and regulations in an easy-to-understand but detailed way. 
-                
-You will be given search results from official municipal sources. Use these search results to answer the user's question. 
-If the search results don't contain specific information about a bylaw, say "I couldn't find specific information about this in the search results" rather than making it up.
+        # Build the system prompt based on whether we have a specific category
+        if category:
+            category_instruction = f"""
+You are a helpful assistant that provides DETAILED information about {category} regulations, bylaws, and requirements for a specific location.
 
-Format your response as follows:
-- Location X requires your grass mowed and no higher than 4 centimeters tall
-- Location X requires driveways, sidewalks, and approaches to your door to be snow and ice free
+Focus your response EXCLUSIVELY on {category} regulations. Cover ALL aspects including:
+- Specific requirements and rules
+- Time limits and deadlines (e.g., how many hours/days to comply)
+- Measurement limits (e.g., how high snow can be, how tall grass can be)
+- Who is responsible (resident, landlord, city)
+- Where the rules apply (property lines, sidewalks, boulevards)
+- Exceptions and exemptions
+- Penalties for non-compliance
+- Permits required
+- Seasonal/time-based requirements
+- Differences between city and provincial rules
+
+Make sure to include exact numbers, measurements, and timeframes whenever available.
+
+Format your response with:
+1. A brief introduction about {category} regulations in the location
+2. A DETAILED table with columns: Category | Specific Rule | Details (including measurements, timeframes, responsible party) | Source
+3. A summary of key points
+4. Links to official sources
+
+If you don't find specific information for {category} regulations, clearly state what is missing and suggest where the user might find it."""
+        else:
+            category_instruction = """
+You are a helpful assistant that explains laws, bylaws, and regulations in an easy-to-understand but detailed way.
 
 Make sure to cover ALL of these categories. If information is missing for a category, explicitly say so:
 - Noise ordinances (construction hours, quiet hours, exemptions)
@@ -131,19 +160,23 @@ At the top, provide a link to the city's official bylaws page if found.
 
 Make sure details are relevant to a resident of the city. Below the table, add a section about parks, festivals, local traditions and general local entertainment. Add a summary in point format at the end.
 
-Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in."""},
+Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in."""
+
+        stream = client.chat.completions.create(
+            model="deepseek-ai/deepseek-v4-pro",
+            messages=[
+                {"role": "system", "content": category_instruction},
                 {"role": "user", "content": f"""Question: {query}
 
 Search Results:
 {search_results}
 
-Please answer the question using the search results above. Make sure to cover ALL categories. If you don't find information for a category, say "No information found in search results."""}
+Please answer the question using the search results above. Make sure to be detailed and specific. If you don't find information, say "No information found in search results."""}
             ],
             temperature=0.3,
-            stream=True,  # ← Enable streaming!
+            stream=True,
         )
         
-        # Yield each chunk as it arrives
         for chunk in stream:
             if chunk.choices[0].delta.content is not None:
                 yield chunk.choices[0].delta.content
@@ -152,18 +185,67 @@ Please answer the question using the search results above. Make sure to cover AL
         yield f"An error occurred: {e}"
 
 # --- Streamlit User Interface ---
-user_input1 = st.text_area("I Live In (City, Province)", height=40, placeholder="e.g., In Montreal Quebec ")
+st.markdown("""
+<style>
+    .stTextArea textarea {
+        min-height: 80px;
+    }
+    .help-text {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 5px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-if st.button("Get Explanation", type="primary"):
+# Two input fields: Location and optional category
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    user_input1 = st.text_area(
+        "📍 I Live In",
+        height=40,
+        placeholder="e.g., Toronto, Ontario",
+        help="Enter your city and province"
+    )
+
+with col2:
+    user_input2 = st.text_input(
+        "🎯 Focus on (optional)",
+        placeholder="e.g., winter, parking, pets",
+        help="Enter a specific category to focus on (leave blank for general overview)"
+    )
+
+# --- Quick category suggestions ---
+st.markdown("**Quick focus options:**")
+cols = st.columns(8)
+quick_categories = ["Winter", "Parking", "Pets", "Noise", "Property", "Waste", "Fences", "Rental"]
+for i, cat in enumerate(quick_categories):
+    with cols[i]:
+        if st.button(f"🔍 {cat}", key=f"btn_{cat}", use_container_width=True):
+            user_input2 = cat
+            # Rerun to apply the selection
+            st.rerun()
+
+st.markdown("---")
+
+if st.button("Get Explanation", type="primary", use_container_width=True):
     if user_input1.strip() == "":
         st.warning("Please enter a location.")
     else:
-        # --- Use a status container for better feedback ---
-        status = st.status("🔍 Getting information...", expanded=True)
+        # Determine if we have a specific category
+        category = user_input2.strip().lower() if user_input2.strip() else None
         
-        # Step 1: Search for relevant bylaws using multiple queries
-        status.update(label="📡 Searching municipal databases (10 targeted searches)...", state="running")
-        search_results = search_bylaws(user_input1)
+        if category:
+            status_text = f"🔍 Getting information about {category} in {user_input1}..."
+        else:
+            status_text = "🔍 Getting comprehensive information..."
+        
+        status = st.status(status_text, expanded=True)
+        
+        # Step 1: Search with targeted queries
+        status.update(label=f"📡 Searching for {'{category} regulations' if category else 'all categories'}...", state="running")
+        search_results = search_bylaws(user_input1, category=category)
         
         if "Search error" in search_results:
             status.update(label="❌ Search failed", state="error")
@@ -171,35 +253,31 @@ if st.button("Get Explanation", type="primary"):
             st.stop()
         
         # Step 2: Show sources found
-        # Extract the total count from the search results
         count_match = re.search(r'Total sources found: (\d+)', search_results)
         source_count = count_match.group(1) if count_match else "0"
         
-        status.update(label=f"✅ Found {source_count} sources across all categories", state="running")
+        status.update(label=f"✅ Found {source_count} sources", state="running")
         with st.expander("📚 Sources Found"):
             st.markdown(search_results)
         
         # Step 3: Stream the response
-        status.update(label="🤖 Analyzing regulations and generating response...", state="running")
+        status.update(label="🤖 Analyzing and generating detailed response...", state="running")
         
-        # Create a placeholder for the streaming response
         response_placeholder = st.empty()
         
-        # Stream the response
-        response_stream = ask_llm(
-            "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table. Make sure to cover ALL categories.",
-            search_results
-        )
+        # Build the query with category focus if provided
+        if category:
+            query = f"I Live in {user_input1}. Provide DETAILED information specifically about {category} regulations. No introduction needed. Include specific rules with measurements and timeframes. Report results in a detailed table."
+        else:
+            query = f"I Live in {user_input1}. No need for a fancy introduction, just get into the explanation. Report results in a table. Make sure to cover ALL categories."
         
-        # Collect the full response for display
+        response_stream = ask_llm(query, search_results, category=category)
+        
         full_response = ""
         for chunk in response_stream:
             full_response += chunk
-            # Update the placeholder with the accumulated response
             response_placeholder.markdown(full_response, unsafe_allow_html=True)
         
-        # Update status to complete
         status.update(label="✅ Complete!", state="complete")
 
-# --- Optional: Add a note about streaming at the bottom ---
-st.caption("Responses stream in real-time as they're generated.")
+st.caption("💡 Tip: Use the 'Focus on' field to get detailed information about a specific category like winter, parking, or pets.")
