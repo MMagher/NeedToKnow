@@ -216,19 +216,6 @@ with col2:
         help="Enter a specific category to focus on (leave blank for general overview)"
     )
 
-# --- Quick category suggestions ---
-st.markdown("**Quick focus options:**")
-cols = st.columns(8)
-quick_categories = ["Winter", "Parking", "Pets", "Noise", "Property", "Waste", "Fences", "Rental"]
-for i, cat in enumerate(quick_categories):
-    with cols[i]:
-        if st.button(f"🔍 {cat}", key=f"btn_{cat}", use_container_width=True):
-            user_input2 = cat
-            # Rerun to apply the selection
-            st.rerun()
-
-st.markdown("---")
-
 if st.button("Get Explanation", type="primary", use_container_width=True):
     if user_input1.strip() == "":
         st.warning("Please enter a location.")
