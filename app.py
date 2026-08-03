@@ -30,7 +30,7 @@ def search_bylaws(location):
         search_url = "https://api.tavily.com/search"
         payload = {
             "api_key": TAVILY_API_KEY,
-            "query": f"{location} municipal bylaws regulations property maintenance noise parking waste pet bylaws pet limits and regulations winter maintanance",
+            "query": f"{location} municipal bylaws regulations property maintenance noise parking waste pet bylaws pet limits and regulations winter maintanance parks fun activities festivals community traditions",
             "search_depth": "advanced",
             "max_results": 10,
             "chunks_per_source": 3,
@@ -84,7 +84,7 @@ limits in general, what the city vs resident is responsible for, exceptions to r
 
 make sure to link the city's bylaws at the top of the results
 
-Make sure details are relevant to a resident of the city. below the table add a section about parks, festivals and general local entertainment. Add a summary at the end.
+Make sure details are relevant to a resident of the city. below the table add a section about parks, festivals, local traditions and general local entertainment. Add a summary in point format at the end.
 
 Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in"""},
                 {"role": "user", "content": f"""Question: {query}
