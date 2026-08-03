@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import requests
+import re
 from openai import OpenAI
 
 # --- Page Configuration ---
@@ -130,7 +131,8 @@ At the top, provide a link to the city's official bylaws page if found.
 
 Make sure details are relevant to a resident of the city. Below the table, add a section about parks, festivals, local traditions and general local entertainment. Add a summary in point format at the end.
 
-Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in.""",                {"role": "user", "content": f"""Question: {query}
+Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in."""},
+                {"role": "user", "content": f"""Question: {query}
 
 Search Results:
 {search_results}
@@ -170,7 +172,6 @@ if st.button("Get Explanation", type="primary"):
         
         # Step 2: Show sources found
         # Extract the total count from the search results
-        import re
         count_match = re.search(r'Total sources found: (\d+)', search_results)
         source_count = count_match.group(1) if count_match else "0"
         
