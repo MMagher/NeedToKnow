@@ -22,33 +22,75 @@ client = OpenAI(
     api_key=NVIDIA_API_KEY,
 )
 
-# --- Search Function ---
+# --- Multi-Search Function ---
 def search_bylaws(location):
-    """Search for bylaws and regulations for a specific location."""
-    try:
-        # Tavily search API (free tier: 1000 searches/month)
-        search_url = "https://api.tavily.com/search"
-        payload = {
-            "api_key": TAVILY_API_KEY,
-            "query": f"{location} municipal bylaws regulations property maintenance noise parking waste pet bylaws pet limits and regulations winter maintanance parks fun activities festivals community traditions",
-            "search_depth": "advanced",
-            "max_results": 10
-        }
+    """Search for bylaws and regulations using multiple targeted queries."""
+    
+    # Define multiple search queries for different categories
+    search_queries = [
+        f"{location} municipal bylaws property maintenance grass cutting weeds",
+        f"{location} noise bylaw construction hours quiet hours",
+        f"{location} parking bylaws street parking overnight parking",
+        f"{location} waste recycling garbage collection bylaws",
+        f"{location} snow removal ice clearance winter maintenance bylaws",
+        f"{location} pet bylaws dog cat licensing animal limits",
+        f"{location} fence bylaws sight lines property boundaries",
+        f"{location} parks festivals community events entertainment",
+        f"{location} rental housing bylaws heating standards property standards",
+        f"{location} boulevard maintenance sidewalk clearing bylaws",
+    ]
+    
+    all_results = []
+    search_context = ""
+    total_sources = 0
+    
+    # Create a progress bar for multiple searches
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for i, query in enumerate(search_queries):
+        status_text.text(f"Searching: {query[:60]}...")
         
-        response = requests.post(search_url, json=payload)
-        response.raise_for_status()
-        results = response.json()
-        
-        # Extract and combine the search results
-        search_context = ""
-        for result in results.get("results", []):
-            search_context += f"Source: {result.get('url')}\n"
-            search_context += f"Title: {result.get('title')}\n"
-            search_context += f"Content: {result.get('content')}\n\n"
-        
-        return search_context
-    except Exception as e:
-        return f"Search error: {e}"
+        try:
+            search_url = "https://api.tavily.com/search"
+            payload = {
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "search_depth": "advanced",
+                "max_results": 3,  # Fewer results per query to stay within limits
+                "chunks_per_source": 2,
+            }
+            
+            response = requests.post(search_url, json=payload)
+            response.raise_for_status()
+            results = response.json()
+            
+            # Add results to the combined context
+            for result in results.get("results", []):
+                # Avoid duplicate sources
+                url = result.get('url', '')
+                if url not in [r.get('url', '') for r in all_results]:
+                    all_results.append(result)
+                    search_context += f"Source: {url}\n"
+                    search_context += f"Title: {result.get('title', '')}\n"
+                    search_context += f"Content: {result.get('content', '')}\n\n"
+                    total_sources += 1
+            
+            # Update progress
+            progress_bar.progress((i + 1) / len(search_queries))
+            
+        except Exception as e:
+            # Continue with other searches even if one fails
+            continue
+    
+    # Clear progress indicators
+    progress_bar.empty()
+    status_text.empty()
+    
+    # Add a summary of what was found
+    search_context = f"Total sources found: {total_sources}\n\n" + search_context
+    
+    return search_context
 
 # --- Core Logic with Streaming ---
 def ask_llm(query, search_results):
@@ -67,31 +109,33 @@ Format your response as follows:
 - Location X requires your grass mowed and no higher than 4 centimeters tall
 - Location X requires driveways, sidewalks, and approaches to your door to be snow and ice free
 
-Make sure to cover:
-- Noise ordinances
-- Property maintenance
-- Parking and vehicles
-- Waste and recycling
-- Winter snow and ice requirements
-- lawn requirements
-- Pet Limits and regulations
+Make sure to cover ALL of these categories. If information is missing for a category, explicitly say so:
+- Noise ordinances (construction hours, quiet hours, exemptions)
+- Property maintenance (grass height, property standards, boulevard maintenance)
+- Parking and vehicles (street parking, overnight restrictions)
+- Waste and recycling (collection schedules, limits)
+- Winter snow and ice requirements (sidewalk clearing, snow removal)
+- Lawn requirements (grass height, weed control)
+- Pet Limits and regulations (licensing, number limits)
+- Fences and sight lines
+- Rental housing standards (heating, maintenance)
 - Any other common or uncommon concerns
 
-report the results in a table and make sure the bylaws are correct for the city, but they should be well organized the results should be easy to follow and read, but must be detailed and not missing any details. 
-make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
+Report the results in a table and make sure the bylaws are correct for the city. The table should be well organized and easy to follow.
+
+Make sure to add details like construction, location, date and time, differences between authorities, who is responsible for what, limits on what you can/can't do, limits on what you can/can't own, limits on how much you can have,
 limits in general, what the city vs resident is responsible for, exceptions to rules for residents, exceptions to rules for city, whether the law comes from the province, city bylaw, or the city law overrides provincial law etc. 
 
-make sure to link the city's bylaws at the top of the results
+At the top, provide a link to the city's official bylaws page if found.
 
-Make sure details are relevant to a resident of the city. below the table add a section about parks, festivals, local traditions and general local entertainment. Add a summary in point format at the end.
+Make sure details are relevant to a resident of the city. Below the table, add a section about parks, festivals, local traditions and general local entertainment. Add a summary in point format at the end.
 
-Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in"""},
-                {"role": "user", "content": f"""Question: {query}
+Cite your sources by including the URL of where you found the information. It is important that the source is linked to the URL it was found in.""",                {"role": "user", "content": f"""Question: {query}
 
 Search Results:
 {search_results}
 
-Please answer the question using the search results above."""}
+Please answer the question using the search results above. Make sure to cover ALL categories. If you don't find information for a category, say "No information found in search results."""}
             ],
             temperature=0.3,
             stream=True,  # ← Enable streaming!
@@ -115,8 +159,8 @@ if st.button("Get Explanation", type="primary"):
         # --- Use a status container for better feedback ---
         status = st.status("🔍 Getting information...", expanded=True)
         
-        # Step 1: Search for relevant bylaws
-        status.update(label="📡 Searching municipal databases...", state="running")
+        # Step 1: Search for relevant bylaws using multiple queries
+        status.update(label="📡 Searching municipal databases (10 targeted searches)...", state="running")
         search_results = search_bylaws(user_input1)
         
         if "Search error" in search_results:
@@ -125,7 +169,12 @@ if st.button("Get Explanation", type="primary"):
             st.stop()
         
         # Step 2: Show sources found
-        status.update(label=f"✅ Found {len(search_results.split('Source:')) - 1} sources", state="running")
+        # Extract the total count from the search results
+        import re
+        count_match = re.search(r'Total sources found: (\d+)', search_results)
+        source_count = count_match.group(1) if count_match else "0"
+        
+        status.update(label=f"✅ Found {source_count} sources across all categories", state="running")
         with st.expander("📚 Sources Found"):
             st.markdown(search_results)
         
@@ -137,7 +186,7 @@ if st.button("Get Explanation", type="primary"):
         
         # Stream the response
         response_stream = ask_llm(
-            "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table.",
+            "I Live in " + user_input1 + ". No need for a fancy introduction, just get into the explanation. Report results in a table. Make sure to cover ALL categories.",
             search_results
         )
         
