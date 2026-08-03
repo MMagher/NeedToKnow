@@ -247,24 +247,36 @@ if st.button("Get Explanation", type="primary", use_container_width=True):
         with st.expander("📚 Sources Found"):
             st.markdown(search_results)
         
-        # Step 3: Stream the response
+        # Step 3: Stream the response without table jumping
         status.update(label="🤖 Analyzing and generating detailed response...", state="running")
-        
-        response_placeholder = st.empty()
-        
-        # Build the query with category focus if provided
+
+        # Create a container with fixed dimensions
+        response_container = st.container()
+        with response_container:
+            # Use a placeholder with fixed height
+            response_placeholder = st.empty()
+
+        # Build the query
         if category:
             query = f"I Live in {user_input1}. Provide DETAILED information specifically about {category} regulations. No introduction needed. Include specific rules with measurements and timeframes. Report results in a detailed table."
         else:
             query = f"I Live in {user_input1}. No need for a fancy introduction, just get into the explanation. Report results in a table. Make sure to cover ALL categories."
-        
+
         response_stream = ask_llm(query, search_results, category=category)
-        
+
         full_response = ""
         for chunk in response_stream:
             full_response += chunk
-            response_placeholder.markdown(full_response, unsafe_allow_html=True)
-        
+            # Wrap in a container with fixed width and overflow handling
+            response_placeholder.markdown(
+                f"""
+                <div style="overflow-x: auto; width: 100%;">
+                    {full_response}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
         status.update(label="✅ Complete!", state="complete")
 
 st.caption("💡 Tip: Use the 'Focus on' field to get detailed information about a specific category like winter, parking, or pets.")
